@@ -1,7 +1,7 @@
 const http = require('http');
-const soldiers = require('./routs/soldiers.js');
-const duties = require('./routs/duties.js');
-const justiceBoard = require('./routs/justiceBoard.js');
+const soldiers = require('./routes/soldiers.js');
+const duties = require('./routes/duties.js');
+const justiceBoard = require('./routes/justiceBoard.js');
 
 function runServer() {
   let server = http.createServer(function (req, res) {
@@ -13,16 +13,19 @@ function runServer() {
       if (body !== "") {
         body = JSON.parse(body);
       }
-      const parsedUrl = req.url.split("/");
-      if (/soldiers.*/.test(parsedUrl[1]) && parsedUrl.length < 4) {
+      const parsedUrl = (req.url.split("/"))[1];
+      if ("soldiers" === parsedUrl ||
+        (parsedUrl.length > 14 && "soldiers?name=" === parsedUrl.substr(0, 14))) {
         soldiers.handleSoldierReq(req, body, function (err, result) {
           if (err) {
+            res.statusCode = 404;
             res.end(err);
           } else {
             res.end(result);
           }
         });
-      } else if (/duties.*/.test(parsedUrl[1]) && parsedUrl.length < 5) {
+      } else if ("duties" === parsedUrl ||
+      (parsedUrl.length > 12 && "duties?name=" === parsedUrl.substr(0, 12))) {
         duties.handleDutyReq(req, body, function (err, result) {
           if (err) {
             res.end(err);
@@ -30,8 +33,8 @@ function runServer() {
             res.end(result);
           }
         });
-      } else if (/justiceBoard/.test(parsedUrl[1]) && parsedUrl.length < 3) {
-        justiceBoard.getJusticeBoard(function (err, result) {
+      } else if (/justiceBoard/.test(parsedUrl)) {
+        justiceBoard.getJusticeBoard(req, function (err, result) {
           if (err) {
             res.end(err);
           } else {
