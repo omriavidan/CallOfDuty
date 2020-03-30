@@ -1,31 +1,53 @@
 const MongoClient = require('mongodb').MongoClient;
-const assert = require('assert');
+
 const url = 'mongodb://localhost:27017';
 const dbName = 'myproject';
-const attributes = ["name"]
+const soldierFields = 5
 
 function checkData(soldierData) {
-  if (/tt[0-9]{7}/.test(soldierData["id"]) && soldierData["name"] && soldierData["rank"] && soldierData["limitations"] && Object.keys(soldierData).length === 5) {
-    return true;
-  }
-  return false;
+  return ((/tt[0-9]{7}/.test(soldierData["id"])) &&
+    (soldierData["name"] != null) &&
+    (soldierData["rank"] != null) &&
+    (soldierData["limitations"] != null) &&
+    (soldierData["duties"] != null) &&
+    Object.keys(soldierData).length === soldierFields)
 }
 
-function handleInsertion(soldierData, done) {
-  soldierData["duties"] = [];
+function insertSoldier(soldierData, done) {
+  soldierData["duties"] = soldierData["duties"] || [];
   if (checkData(soldierData) === false) {
-    done("One or more fields is invalid");
-  } else {
-    MongoClient.connect(url, function (err, client) {
-      assert.equal(null, err);
-      const db = client.db(dbName);
-      const collection = db.collection('Soldiers')
-      collection.insertOne(soldierData, (err) => {
-        client.close();
-        done(err);
-      })
-    });
+    return done("One or more fields are invalid");
   }
+  MongoClient.connect(url, function (connectionErr, client) {
+    if (connectionErr)
+      return done(connectionErr)
+    const db = client.db(dbName);
+    const collection = db.collection('Soldiers')
+    collection.insertOne(soldierData, (err) => {
+      client.close();
+      done(err);
+    })
+  });
 }
 
-module.exports.insertSoldier = handleInsertion;
+function findSoldier(soldierObj, done) {
+  MongoClient.connect(url, function (connectionErr, client) {
+    if (connectionErr)
+      return done(connectionErr)
+    const db = client.db(dbName);
+    const collection = db.collection('Soldiers')
+    collection.find(soldierObj).toArray(function (findErr, docs) {
+      if (findErr) {
+        return done(findErr)
+      }
+      if (docs.length === 1) {
+        docs = docs[0];
+      }
+      client.close();
+      done(findErr, JSON.stringify(docs));
+    });
+  });
+}
+
+module.exports.insertSoldier = insertSoldier;
+module.exports.findSoldier = findSoldier;
