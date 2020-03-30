@@ -200,4 +200,57 @@ describe("Duties tests", function () {
       });
     })
   });
+
+  describe("Duties delete test", function () {
+
+    it("Should be able to return correct respone when trying to delete correct duty", function (done) {
+      MongoClient.connect(DBurl, function (err, client) {
+        assert.equal(null, err);
+        const db = client.db(dbName);
+        const collection = db.collection('Duties')
+        collection.insertOne({
+          "name": "hagnash",
+          "location": "soosia",
+          "days": "7",
+          "constraints": "none",
+          "soldiersRequired": "2",
+          "value": "10",
+          "soldiers": []
+        }, (err, docInserted) => {
+          assert.equal(err, null);
+          const Http = new XMLHttpRequest();
+          Http.open("DELETE", serverUrl + "/" + (docInserted["insertedId"].toString()));
+          Http.send();
+          Http.onreadystatechange = (e) => {
+            if (Http.readyState == 4 && Http.status == 200) {
+              expect(Http.responseText).to.eql("");
+              if (Http.responseText !== "") {
+                collection.deleteOne({
+                  "_id": docInserted["insertedId"]
+                }, (deleteError) => {
+                  client.close();
+                  done();
+                })
+              } else {
+                client.close();
+                done();
+              }
+            }
+          }
+        })
+      });
+    })
+
+    it("Should be able to return correct respone when trying to delete non-existent duty", function (done) {
+      const Http = new XMLHttpRequest();
+      Http.open("DELETE", serverUrl + "/435435");
+      Http.send();
+      Http.onreadystatechange = (e) => {
+        if (Http.readyState == 4 && Http.status == 200) {
+          expect(Http.responseText).to.eql("invalid duty ID");
+          done();
+        }
+      }
+    })
+  });
 });

@@ -1,11 +1,8 @@
-const jb = require('../routs/justiceboard.js');
 const MongoClient = require('mongodb').MongoClient;
 const ObjectId = require('mongodb').ObjectID
 const assert = require('assert');
-const async = require('async');
 const url = 'mongodb://localhost:27017';
 const dbName = 'myproject';
-
 
 function checkData(dutiesData) {
   if (!(dutiesData["name"] && dutiesData["location"] && dutiesData["days"] && dutiesData["constraints"] && dutiesData["soldiersRequired"] && dutiesData["value"])) {
@@ -58,5 +55,34 @@ function handleFind(dutyId, dutyName, done) {
   });
 }
 
+function handleDelete(dutyId, done) {
+  MongoClient.connect(url, function (err, client) {
+    assert.equal(null, err);
+    const db = client.db(dbName);
+    const collection = db.collection('Duties')
+    let dutyToSearch = {};
+    if (dutyId) {
+      if (/[0-9a-fA-F]{24}/.test(dutyId)) {
+        dutyToSearch["_id"] = ObjectId(dutyId);
+      } else {
+        done("invalid duty ID");
+      }
+    }
+    collection.find(dutyToSearch).toArray(function (err, record) {
+      assert.equal(err, null);
+      if (record.length === 1 && record[0]["soldiers"].length === 0) {
+        collection.deleteOne(dutyToSearch, (deleteError) => {
+          client.close();
+          done(deleteError);
+        })
+      } else {
+        client.close();
+        done("Duty is already scheduled and can't be deleted");
+      }
+    });
+  });
+}
+
 module.exports.insertDuty = handleInsertion;
 module.exports.findDuty = handleFind;
+module.exports.deleteDuty = handleDelete;
