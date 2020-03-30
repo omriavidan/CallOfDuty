@@ -1,5 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 const assert = require('assert');
+const ObjectId = require('mongodb').ObjectID
 const url = 'mongodb://localhost:27017';
 const dbName = 'myproject';
 
@@ -28,4 +29,31 @@ function handleInsertion(dutiesData, done) {
   }
 }
 
+function handleFind(dutyId, dutyName, done) {
+  MongoClient.connect(url, function (err, client) {
+    assert.equal(null, err);
+    const db = client.db(dbName);
+    const collection = db.collection('Duties')
+    let dutyToSearch = {};
+    if (dutyId) {
+      if (/[0-9a-fA-F]{24}/.test(dutyId)) {
+        dutyToSearch["_id"] = ObjectId(dutyId);
+      } else {
+        done("invalid duty ID");
+      }
+    } else if (dutyName) {
+      dutyToSearch["name"] = dutyName;
+    }
+    collection.find(dutyToSearch).toArray(function (err, docs) {
+      assert.equal(err, null);
+      if (docs.length === 1) {
+        docs = docs[0];
+      }
+      client.close();
+      done(err, JSON.stringify(docs));
+    });
+  });
+}
+
 module.exports.insertDuty = handleInsertion;
+module.exports.findDuty = handleFind;
