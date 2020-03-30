@@ -3,8 +3,8 @@ const urlib = require('url');
 
 function handleDutyReq(req, data, done) {
   const parsedUrlString = req.url.split("/");
-  if (parsedUrlString.length >= 4) {
-    done("invalid url request");
+  if (parsedUrlString.length >= 5) {
+    return done(new Error())
   }
   if (req.method === "OPTIONS") {
     req.method = req.headers["access-control-request-method"];
@@ -13,25 +13,20 @@ function handleDutyReq(req, data, done) {
   const urlParams = parsedUrlString[2];
   if (req.method === "GET") {
     if (parsedUrlString.length === 3) {
-      duties.findDuty(urlParams, null, done)
+      return duties.findDuty(urlParams, null, done)
     } else if (parsedUrl.searchParams.has("name")) {
-      duties.findDuty(null, parsedUrl.searchParams.get("name"), done)
+      return duties.findDuty(null, parsedUrl.searchParams.get("name"), done)
     } else if (parsedUrlString.length === 2) {
-      duties.findDuty(null, null, done)
-    } else {
-      done("invalid url request")
+      return duties.findDuty(null, null, done)
     }
+    return done(new Error())
+
   } else if (req.method === "POST" && parsedUrlString.length === 2) {
-    duties.insertDuty(data, done);
+    return duties.insertDuty(data, done);
   } else if (req.method === "DELETE" && parsedUrlString.length === 3) {
-    duties.deleteDuty(urlParams, done)
-  } else if (req.method === "PATCH" && parsedUrlString.length === 3) {
-    duties.updateDuty(urlParams, data, done)
-  } else if (req.method === "PUT" && parsedUrlString[3] === "schedule" && parsedUrlString.length === 4) {
-    duties.scheduleDuty(urlParams, done)
-  } else {
-    done("invalid url request")
+    return duties.deleteDuty(urlParams, done)
   }
+  return done(new Error())
 }
 
 module.exports.handleDutyReq = handleDutyReq;
