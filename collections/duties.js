@@ -5,8 +5,18 @@ const url = 'mongodb://localhost:27017';
 const dbName = 'myproject';
 
 function checkData(dutiesData) {
-  if (!(dutiesData["name"] && dutiesData["location"] && dutiesData["days"] && dutiesData["constraints"] && dutiesData["soldiersRequired"] && dutiesData["value"])) {
-    return false;
+  if (dutiesData["name"] && dutiesData["location"] && dutiesData["days"] && dutiesData["constraints"] && dutiesData["soldiersRequired"] && dutiesData["value"] && Object.keys(dutiesData).length === 7) {
+    return true;
+  }
+  return false;
+}
+
+function checkUpdateData(dutiesData) {
+  let legalAttr = ["name", "location", "days", "constraints", "soldiersRequired", "value", "soldiers"]
+  for (let attr in dutiesData) {
+    if (!(legalAttr.includes(attr))) {
+      return false;
+    }
   }
   return true;
 }
@@ -73,7 +83,10 @@ function handleDelete(dutyId, done) {
       if (record.length === 1 && record[0]["soldiers"].length === 0) {
         collection.deleteOne(dutyToSearch, (deleteError) => {
           client.close();
-          done(deleteError);
+          if (deleteError) {
+            done(deleteError);
+          }
+          done();
         })
       } else {
         client.close();
@@ -83,6 +96,41 @@ function handleDelete(dutyId, done) {
   });
 }
 
+function updateDuty(dutyId, dataToUpdate, done) {
+  if (checkUpdateData(dataToUpdate) === false) {
+    done("One or more fields is invalid");
+  } else {
+    MongoClient.connect(url, function (err, client) {
+      assert.equal(null, err);
+      const db = client.db(dbName);
+      const collection = db.collection('Duties')
+      let dutyToSearch = {};
+      if (dutyId) {
+        if (/[0-9a-fA-F]{24}/.test(dutyId)) {
+          dutyToSearch["_id"] = ObjectId(dutyId);
+        } else {
+          done("invalid duty ID");
+        }
+      }
+      collection.find(dutyToSearch).toArray(function (err, record) {
+        assert.equal(err, null);
+        if (record.length === 1 && record[0]["soldiers"].length === 0) {
+          collection.updateOne(dutyToSearch, {
+            $set: dataToUpdate
+          }, function (err) {
+            client.close();
+            done(err);
+          });
+        } else {
+          client.close();
+          done("Duty is already scheduled and can't be deleted");
+        }
+      });
+    });
+  }
+}
+
 module.exports.insertDuty = handleInsertion;
 module.exports.findDuty = handleFind;
 module.exports.deleteDuty = handleDelete;
+module.exports.updateDuty = updateDuty;

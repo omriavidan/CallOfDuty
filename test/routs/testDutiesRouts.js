@@ -3,8 +3,6 @@ const assert = require('assert');
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const testServer = require("../../start.js").server;
 const MongoClient = require('mongodb').MongoClient;
-const ObjectId = require('mongodb').ObjectID
-
 const DBurl = 'mongodb://localhost:27017';
 const dbName = 'myproject';
 
@@ -29,10 +27,14 @@ describe("Duties tests", function () {
         "soldiersRequired": "2",
         "value": "10"
       }));
-      Http.onreadystatechange = (e) => {
-        if (Http.readyState == 4 && Http.status == 200) {
-          expect(Http.responseText).to.eql("One or more fields is invalid");
-          done();
+      Http.onreadystatechange = (stateErr) => {
+        if (stateErr) {
+          done(stateErr);
+        } else {
+          if (Http.readyState == 4 && Http.status == 200) {
+            expect(Http.responseText).to.eql("One or more fields is invalid");
+            done();
+          }
         }
       }
     })
@@ -48,25 +50,33 @@ describe("Duties tests", function () {
         "soldiersRequired": "2",
         "value": "10"
       }));
-      Http.onreadystatechange = (e) => {
-        if (Http.readyState == 4 && Http.status == 200) {
-          MongoClient.connect(DBurl, function (err, client) {
-            assert.equal(null, err);
-            const db = client.db(dbName);
-            const collection = db.collection('Duties')
-            collection.deleteOne({
-              "name": "hagnash",
-              "location": "soosia",
-              "days": "7",
-              "constraints": "none",
-              "soldiersRequired": "2",
-              "value": "10"
-            }, (deleteError) => {
-              client.close();
-              expect(Http.responseText).to.eql('');
-              done();
-            })
-          });
+      Http.onreadystatechange = (stateErr) => {
+        if (stateErr) {
+          done(stateErr);
+        } else {
+          if (Http.readyState == 4 && Http.status == 200) {
+            MongoClient.connect(DBurl, function (err, client) {
+              assert.equal(null, err);
+              const db = client.db(dbName);
+              const collection = db.collection('Duties')
+              collection.deleteOne({
+                "name": "hagnash",
+                "location": "soosia",
+                "days": "7",
+                "constraints": "none",
+                "soldiersRequired": "2",
+                "value": "10"
+              }, (deleteError) => {
+                client.close();
+                if (deleteError) {
+                  done(deleteError)
+                } else {
+                  expect(Http.responseText).to.eql('');
+                  done();
+                }
+              })
+            });
+          }
         }
       }
     })
@@ -78,21 +88,29 @@ describe("Duties tests", function () {
       const Http = new XMLHttpRequest();
       Http.open("GET", serverUrl);
       Http.send();
-      Http.onreadystatechange = (e) => {
+      Http.onreadystatechange = (stateErr) => {
         if (Http.readyState == 4 && Http.status == 200) {
-          MongoClient.connect(DBurl, function (err, client) {
-            const db = client.db(dbName);
-            const collection = db.collection('Duties')
-            collection.find({}).toArray(function (err, docs) {
-              assert.equal(err, null);
-              if (docs.length === 1) {
-                docs = docs[0];
-              }
-              client.close();
-              expect(Http.responseText).to.eql(JSON.stringify(docs));
-              done();
+          if (stateErr) {
+            done(stateErr);
+          } else {
+            MongoClient.connect(DBurl, function (err, client) {
+              assert.equal(null, err);
+              const db = client.db(dbName);
+              const collection = db.collection('Duties')
+              collection.find({}).toArray(function (err, docs) {
+                client.close();
+                if (err) {
+                  done(err);
+                } else {
+                  if (docs.length === 1) {
+                    docs = docs[0];
+                  }
+                  expect(Http.responseText).to.eql(JSON.stringify(docs));
+                  done();
+                }
+              });
             });
-          });
+          }
         }
       }
     })
@@ -114,25 +132,33 @@ describe("Duties tests", function () {
           const Http = new XMLHttpRequest();
           Http.open("GET", serverUrl + "/" + (docInserted["insertedId"].toString()));
           Http.send();
-          Http.onreadystatechange = (e) => {
-            if (Http.readyState == 4 && Http.status == 200) {
-              let dutyToSearch = {};
-              dutyToSearch["_id"] = docInserted["insertedId"];
-              collection.find(
-                dutyToSearch
-              ).toArray(function (err, docs) {
-                assert.equal(err, null);
-                if (docs.length === 1) {
-                  docs = docs[0];
-                }
-                expect(Http.responseText).to.eql(JSON.stringify(docs));
-                collection.deleteOne({
-                  "_id": docInserted["insertedId"]
-                }, (deleteError) => {
-                  client.close();
-                  done();
-                })
-              });
+          Http.onreadystatechange = (stateErr) => {
+            if (stateErr) {
+              done(stateErr);
+            } else {
+              if (Http.readyState == 4 && Http.status == 200) {
+                let dutyToSearch = {};
+                dutyToSearch["_id"] = docInserted["insertedId"];
+                collection.find(
+                  dutyToSearch
+                ).toArray(function (err, docs) {
+                  assert.equal(err, null);
+                  if (docs.length === 1) {
+                    docs = docs[0];
+                  }
+                  expect(Http.responseText).to.eql(JSON.stringify(docs));
+                  collection.deleteOne({
+                    "_id": docInserted["insertedId"]
+                  }, (deleteError) => {
+                    client.close();
+                    if (deleteError) {
+                      done(deleteError)
+                    } else {
+                      done();
+                    }
+                  })
+                });
+              }
             }
           }
         })
@@ -156,25 +182,33 @@ describe("Duties tests", function () {
           const Http = new XMLHttpRequest();
           Http.open("GET", serverUrl + "?name=hagnash");
           Http.send();
-          Http.onreadystatechange = (e) => {
-            if (Http.readyState == 4 && Http.status == 200) {
-              let dutyToSearch = {};
-              dutyToSearch["_id"] = docInserted["insertedId"];
-              collection.find(
-                dutyToSearch
-              ).toArray(function (err, docs) {
-                assert.equal(err, null);
-                if (docs.length === 1) {
-                  docs = docs[0];
-                }
-                expect(Http.responseText).to.eql(JSON.stringify(docs));
-                collection.deleteOne({
-                  "_id": docInserted["insertedId"]
-                }, (deleteError) => {
-                  client.close();
-                  done();
-                })
-              });
+          Http.onreadystatechange = (stateErr) => {
+            if (stateErr) {
+              done(stateErr);
+            } else {
+              if (Http.readyState == 4 && Http.status == 200) {
+                let dutyToSearch = {};
+                dutyToSearch["_id"] = docInserted["insertedId"];
+                collection.find(
+                  dutyToSearch
+                ).toArray(function (err, docs) {
+                  assert.equal(err, null);
+                  if (docs.length === 1) {
+                    docs = docs[0];
+                  }
+                  expect(Http.responseText).to.eql(JSON.stringify(docs));
+                  collection.deleteOne({
+                    "_id": docInserted["insertedId"]
+                  }, (deleteError) => {
+                    client.close();
+                    if (deleteError) {
+                      done(deleteError)
+                    } else {
+                      done();
+                    }
+                  })
+                });
+              }
             }
           }
         })
@@ -182,22 +216,19 @@ describe("Duties tests", function () {
     })
 
     it("Should be able to return correct respone when the duties path contains wrong id", function (done) {
-      MongoClient.connect(DBurl, function (err, client) {
-        assert.equal(null, err);
-        const db = client.db(dbName);
-        const collection = db.collection('Duties')
-        assert.equal(err, null);
-        const Http = new XMLHttpRequest();
-        Http.open("GET", serverUrl + "/45436456456");
-        Http.send();
-        Http.onreadystatechange = (e) => {
+      const Http = new XMLHttpRequest();
+      Http.open("GET", serverUrl + "/45436456456");
+      Http.send();
+      Http.onreadystatechange = (stateErr) => {
+        if (stateErr) {
+          done(stateErr);
+        } else {
           if (Http.readyState == 4 && Http.status == 200) {
-            client.close();
             expect(Http.responseText).to.eql("invalid duty ID");
             done();
           }
         }
-      });
+      }
     })
   });
 
@@ -221,19 +252,27 @@ describe("Duties tests", function () {
           const Http = new XMLHttpRequest();
           Http.open("DELETE", serverUrl + "/" + (docInserted["insertedId"].toString()));
           Http.send();
-          Http.onreadystatechange = (e) => {
-            if (Http.readyState == 4 && Http.status == 200) {
-              expect(Http.responseText).to.eql("");
-              if (Http.responseText !== "") {
-                collection.deleteOne({
-                  "_id": docInserted["insertedId"]
-                }, (deleteError) => {
+          Http.onreadystatechange = (stateErr) => {
+            if (stateErr) {
+              done(stateErr);
+            } else {
+              if (Http.readyState == 4 && Http.status == 200) {
+                expect(Http.responseText).to.eql("");
+                if (Http.responseText !== "") {
+                  collection.deleteOne({
+                    "_id": docInserted["insertedId"]
+                  }, (deleteError) => {
+                    client.close();
+                    if (deleteError) {
+                      done(deleteError)
+                    } else {
+                      done();
+                    }
+                  })
+                } else {
                   client.close();
                   done();
-                })
-              } else {
-                client.close();
-                done();
+                }
               }
             }
           }
@@ -245,10 +284,121 @@ describe("Duties tests", function () {
       const Http = new XMLHttpRequest();
       Http.open("DELETE", serverUrl + "/435435");
       Http.send();
-      Http.onreadystatechange = (e) => {
-        if (Http.readyState == 4 && Http.status == 200) {
-          expect(Http.responseText).to.eql("invalid duty ID");
-          done();
+      Http.onreadystatechange = (stateErr) => {
+        if (stateErr) {
+          done(stateErr);
+        } else {
+          if (Http.readyState == 4 && Http.status == 200) {
+            expect(Http.responseText).to.eql("invalid duty ID");
+            done();
+          }
+        }
+      }
+    })
+  });
+
+  describe("Duties update test", function () {
+
+    it("Should be able to return correct respone when trying to update correct duty", function (done) {
+      MongoClient.connect(DBurl, function (err, client) {
+        assert.equal(null, err);
+        const db = client.db(dbName);
+        const collection = db.collection('Duties')
+        collection.insertOne({
+          "name": "hagnash",
+          "location": "soosia",
+          "days": "7",
+          "constraints": "none",
+          "soldiersRequired": "2",
+          "value": "10",
+          "soldiers": []
+        }, (err, docInserted) => {
+          assert.equal(err, null);
+          const Http = new XMLHttpRequest();
+          Http.open("PATCH", serverUrl + "/" + (docInserted["insertedId"].toString()));
+          Http.send(JSON.stringify({
+            "location": "yair",
+            "days": "4"
+          }));
+          Http.onreadystatechange = (stateErr) => {
+            if (stateErr) {
+              done(stateErr);
+            } else {
+              if (Http.readyState == 4 && Http.status == 200) {
+                expect(Http.responseText).to.eql("");
+                collection.deleteOne({
+                  "_id": docInserted["insertedId"]
+                }, (deleteError) => {
+                  client.close();
+                  if (deleteError) {
+                    done(deleteError)
+                  } else {
+                    done();
+                  }
+                })
+              }
+            }
+          }
+        })
+      });
+    })
+
+    it("Should be able to return correct respone when trying to update with wrong fields", function (done) {
+      MongoClient.connect(DBurl, function (err, client) {
+        assert.equal(null, err);
+        const db = client.db(dbName);
+        const collection = db.collection('Duties')
+        collection.insertOne({
+          "name": "hagnash",
+          "location": "soosia",
+          "days": "7",
+          "constraints": "none",
+          "soldiersRequired": "2",
+          "value": "10",
+          "soldiers": []
+        }, (err, docInserted) => {
+          assert.equal(err, null);
+          const Http = new XMLHttpRequest();
+          Http.open("PATCH", serverUrl + "/" + (docInserted["insertedId"].toString()));
+          Http.send(JSON.stringify({
+            "location": "yair",
+            "lol": "4"
+          }));
+          Http.onreadystatechange = (stateErr) => {
+            if (stateErr) {
+              done(stateErr);
+            } else {
+              if (Http.readyState == 4 && Http.status == 200) {
+                expect(Http.responseText).to.eql("One or more fields is invalid");
+                collection.deleteOne({
+                  "_id": docInserted["insertedId"]
+                }, (deleteError) => {
+                  client.close();
+                  if (deleteError) {
+                    done(deleteError)
+                  } else {
+                    done();
+                  }
+                })
+              }
+            }
+          }
+        })
+      });
+    })
+
+    it("Should be able to return correct respone when trying to update a non-existent duty", function (done) {
+      const Http = new XMLHttpRequest();
+      Http.open("PATCH", serverUrl + "/435435");
+      Http.send();
+      Http.onreadystatechange = (stateErr) => {
+        if (stateErr) {
+          done(stateErr);
+        } else {
+          if (Http.readyState == 4 && Http.status == 200) {
+            expect(Http.responseText).to.eql("invalid duty ID");
+            done();
+          }
         }
       }
     })
