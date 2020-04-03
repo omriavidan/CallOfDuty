@@ -1,14 +1,18 @@
 const MongoClient = require('mongodb').MongoClient;
 const ObjectId = require('mongodb').ObjectID
-const assert = require('assert');
+
 const url = 'mongodb://localhost:27017';
 const dbName = 'myproject';
+const dutiesFields = 7
 
 function checkData(dutiesData) {
-  if (!(dutiesData["name"] && dutiesData["location"] && dutiesData["days"] && dutiesData["constraints"] && dutiesData["soldiersRequired"] && dutiesData["value"])) {
-    return false;
-  }
-  return true;
+  return (dutiesData["name"] != null) &&
+    (dutiesData["location"] != null) &&
+    (dutiesData["days"] != null) &&
+    (dutiesData["constraints"] != null) &&
+    (dutiesData["soldiersRequired"] != null) &&
+    (dutiesData["value"] != null) &&
+    (Object.keys(dutiesData).length === dutiesFields)
 }
 
 function checkUpdateData(dutiesData) {
@@ -22,16 +26,16 @@ function checkUpdateData(dutiesData) {
 }
 
 function handleInsertion(dutiesData, done) {
-  dutiesData["soldiers"] = [];
+  dutiesData["soldiers"] = dutiesData["soldiers"] || [];
   if (checkData(dutiesData) === false) {
-    done("One or more fields is invalid");
+    done("One or more fields are invalid");
   } else {
     MongoClient.connect(url, function (err, client) {
-      assert.equal(null, err);
+      if(err) return done(err)
       const db = client.db(dbName);
       const collection = db.collection('Duties')
-      collection.insertOne(dutiesData, (err) => {
-        assert.equal(err, null);
+      collection.insertOne(dutiesData, (insertErr) => {
+        if(insertErr) return done(insertErr)
         client.close();
         done(err);
       })
@@ -41,7 +45,7 @@ function handleInsertion(dutiesData, done) {
 
 function handleFind(dutyId, dutyName, done) {
   MongoClient.connect(url, function (err, client) {
-    assert.equal(null, err);
+    if(err) return done(err)
     const db = client.db(dbName);
     const collection = db.collection('Duties')
     let dutyToSearch = {};
@@ -54,8 +58,8 @@ function handleFind(dutyId, dutyName, done) {
     } else if (dutyName) {
       dutyToSearch["name"] = dutyName;
     }
-    collection.find(dutyToSearch).toArray(function (err, docs) {
-      assert.equal(err, null);
+    collection.find(dutyToSearch).toArray(function (findErr, docs) {
+      if(findErr) return done(findErr)
       if (docs.length === 1) {
         docs = docs[0];
       }
@@ -67,7 +71,7 @@ function handleFind(dutyId, dutyName, done) {
 
 function handleDelete(dutyId, done) {
   MongoClient.connect(url, function (err, client) {
-    assert.equal(null, err);
+    if(err) return done(err)
     const db = client.db(dbName);
     const collection = db.collection('Duties')
     let dutyToSearch = {};
@@ -78,12 +82,15 @@ function handleDelete(dutyId, done) {
         done("invalid duty ID");
       }
     }
-    collection.find(dutyToSearch).toArray(function (err, record) {
-      assert.equal(err, null);
+    collection.find(dutyToSearch).toArray(function (findErr, record) {
+      if(findErr) return done(findErr)
       if (record.length === 1 && record[0]["soldiers"].length === 0) {
-        collection.deleteOne({"_id": ObjectId(dutyId)}, (deleteError) => {
+        collection.deleteOne(dutyToSearch, (deleteError) => {
           client.close();
-          done(deleteError);
+          if (deleteError) {
+            done(deleteError);
+          }
+          done();
         })
       } else {
         client.close();
@@ -95,10 +102,10 @@ function handleDelete(dutyId, done) {
 
 function updateDuty(dutyId, dataToUpdate, done) {
   if (checkUpdateData(dataToUpdate) === false) {
-    done("One or more fields is invalid");
+    done("One or more fields are invalid");
   } else {
     MongoClient.connect(url, function (err, client) {
-      assert.equal(null, err);
+      if(err) return done(err)
       const db = client.db(dbName);
       const collection = db.collection('Duties')
       let dutyToSearch = {};
@@ -109,14 +116,12 @@ function updateDuty(dutyId, dataToUpdate, done) {
           done("invalid duty ID");
         }
       }
-      collection.find(dutyToSearch).toArray(function (err, record) {
-        assert.equal(err, null);
+      collection.find(dutyToSearch).toArray(function (findErr, record) {
+        if(findErr) return done(findErr)
         if (record.length === 1 && record[0]["soldiers"].length === 0) {
           collection.updateOne(dutyToSearch, {
             $set: dataToUpdate
-          }, function (err, result) {
-            assert.equal(err, null);
-            assert.equal(1, result.result.n);
+          }, function (err) {
             client.close();
             done(err);
           });
