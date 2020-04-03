@@ -51,7 +51,8 @@ function handleFind(dutyId, dutyName, done) {
       } else {
         done("invalid duty ID");
       }
-    } else if (dutyName) {
+    }
+    if (dutyName) {
       dutyToSearch["name"] = dutyName;
     }
     collection.find(dutyToSearch).toArray(function (err, docs) {
