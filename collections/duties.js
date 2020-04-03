@@ -51,7 +51,8 @@ function handleFind(dutyId, dutyName, done) {
       } else {
         done("invalid duty ID");
       }
-    } else if (dutyName) {
+    }
+    if (dutyName) {
       dutyToSearch["name"] = dutyName;
     }
     collection.find(dutyToSearch).toArray(function (err, docs) {
@@ -129,6 +130,77 @@ function updateDuty(dutyId, dataToUpdate, done) {
   }
 }
 
+function scheduleDuty(dutyId, done) {
+  jb.getJusticeBoard((err, jBoard) => {
+    const json = JSON.parse(jBoard)
+    jBoard = Object.keys(json).map(function (key) {
+        return json[key];
+      })
+      .sort(function (a, b) {
+        return a.score > b.score;
+      });
+    jBoard = Object.assign([], jBoard);
+    let dutyToSearch = {};
+    if (dutyId) {
+      if (/[0-9a-fA-F]{24}/.test(dutyId)) {
+        dutyToSearch["_id"] = ObjectId(dutyId);
+      } else {
+        done("invalid duty ID");
+      }
+    }
+    MongoClient.connect(url, function (err, client) {
+      assert.equal(null, err);
+      const db = client.db(dbName);
+      const dutyCollection = db.collection('Duties');
+      const solCollection = db.collection('Soldiers');
+      dutyCollection.find({
+        dutyToSearch
+      }).toArray(function (err, duty) {
+        assert.equal(err, null);
+        duty = duty[0];
+        let numSolToSchedule = Number(duty["soldiersRequired"]) - duty["soldiers"].length;
+        async.forEachOf(jBoard, (soldier, key, doneSol) => { 
+          solCollection.find({
+            "id": soldier["id"]
+          }).toArray(function (err, sol) {
+            sol = sol[0];
+            if (!(numSolToSchedule <= 0 || (sol.limitations.some(r => duty.constraints.includes(r))))) {
+              numSolToSchedule -= 1;
+              solCollection.updateOne({
+                "id": soldier["id"]
+              }, {
+                $push: {
+                  "duties": duty["_id"]
+                }
+              }, function (err, result) {
+                assert.equal(err, null);
+                assert.equal(1, result.result.n);
+                dutyCollection.updateOne({
+                  "_id": ObjectId(dutyId)
+                }, {
+                  $push: {
+                    "soldiers": soldier["id"]
+                  }
+                }, function (err, result) {
+                  assert.equal(err, null);
+                  assert.equal(1, result.result.n);
+                  doneSol();
+                });
+              });
+            } else {
+              doneSol();
+            }
+          })
+        }, err => {
+          client.close();
+          done(err);
+        })
+      });
+    })
+  })
+}
+
+module.exports.scheduleDuty = scheduleDuty;
 module.exports.insertDuty = handleInsertion;
 module.exports.findDuty = handleFind;
 module.exports.deleteDuty = handleDelete;
