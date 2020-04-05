@@ -1,6 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
-const assert = require('assert');
 const async = require('async');
+
 const url = 'mongodb://localhost:27017';
 const dbName = 'myproject';
 
@@ -15,39 +15,43 @@ function getSoldiersDb(db, doneS) {
   });
 }
 
-function calcDutiesScore(db, duties, doneGet) {
+function calcDutiesScore(db, duties, done) {
   const collection = db.collection('Duties')
   let dutyToSearch = {};
   let sum = 0;
-  async.forEachOf(duties, (duty, key, doneDuty) => {
+  async.forEachOf(duties, (duty, key, next) => {
     dutyToSearch["_id"] = duty;
-    collection.find(dutyToSearch).toArray(function (err, docs) {
-      assert.equal(err, null);
+    collection.find(dutyToSearch).toArray(function (findErr, docs) {
+      if(findErr) return done(findErr)
       docs = docs[0];
       sum += Number(docs.value);
-      doneDuty(err);
+      next();
     });
   }, (err) => {
-    doneGet(err, sum.toString());
+    done(err, sum.toString());
   })
 }
 
-function getJusticeBoard(done) {
+function getJusticeBoard(req, done) {
+  if (req != null) {
+    const parsedUrlString = req.url.split("/");
+    if (parsedUrlString.length >= 5) {
+      done("invalid url request");
+    }
+  }
   MongoClient.connect(url, function (err, client) {
-    assert.equal(null, err);
+    if(err) return done(err)
     const db = client.db(dbName);
     getSoldiersDb(db, (err, soldiers) => {
-      if (err) {
-        done("No such database")
-      }
+      if (err) return done(err)
       let justiceBoard = [];
-      async.forEachOf(soldiers, (soldier, key, doneSol) => {
+      async.forEachOf(soldiers, (soldier, key, next) => {
         calcDutiesScore(db, soldier.duties, (err, dutiesSum) => {
           justiceBoard.push({
             "id": soldier["id"],
             "score": dutiesSum
           });
-          doneSol(err, dutiesSum);
+          next(err, dutiesSum);
         })
       }, err => {
         client.close();
