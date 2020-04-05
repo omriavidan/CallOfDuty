@@ -69,30 +69,34 @@ describe("JusticeBoard tests", function () {
                   doneWf(err);
                 } else {
                   data.push(soldiersInserted.insertedIds);
-                  doneWf(null, data);
+                  doneWf(null);
                 }
               });
             },
-            function (data, doneWf) {
+            function (doneWf) {
               const Http = new XMLHttpRequest();
               Http.open("GET", serverUrl);
               Http.send();
-              Http.onreadystatechange = (e) => {
-                if (Http.readyState == 4 && Http.status == 200) {
-                  expect(Http.responseText).to.eql('[{"id":"tt8145643","score":"0"},{"id":"tt8145647","score":"0"}]');
-                  if (Http.responseText !== "") {
-                    let collection = db.collection('Duties')
-                    collection.deleteMany({}, (deleteError) => {
-                      if (deleteError) {
-                        doneWf(deleteError)
-                      }
-                      let collection = db.collection('Soldiers')
+              Http.onreadystatechange = (stateErr) => {
+                if (stateErr) {
+                  done(stateErr);
+                } else {
+                  if (Http.readyState == 4 && Http.status == 200) {
+                    expect(Http.responseText).to.eql('[{"id":"tt8145643","score":"0"},{"id":"tt8145647","score":"0"}]');
+                    if (Http.responseText !== "") {
+                      let collection = db.collection('Duties')
                       collection.deleteMany({}, (deleteError) => {
-                        doneWf(deleteError);
+                        if (deleteError) {
+                          doneWf(deleteError)
+                        }
+                        let collection = db.collection('Soldiers')
+                        collection.deleteMany({}, (deleteError) => {
+                          doneWf(deleteError);
+                        })
                       })
-                    })
-                  } else {
-                    doneWf(err);
+                    } else {
+                      doneWf(err);
+                    }
                   }
                 }
               }
@@ -110,24 +114,19 @@ describe("JusticeBoard tests", function () {
     })
 
     it.only("Should be able to return correct respone when trying to get justice Board with no soldiers", function (done) {
-      MongoClient.connect(DBurl, function (err, client) {
-        assert.equal(null, err);
-        const db = client.db(dbName);
-        const Http = new XMLHttpRequest();
-        Http.open("GET", serverUrl);
-        Http.send();
-        Http.onreadystatechange = (e) => {
+      const Http = new XMLHttpRequest();
+      Http.open("GET", serverUrl);
+      Http.send();
+      Http.onreadystatechange = (stateErr) => {
+        if (stateErr) {
+          done(stateErr);
+        } else {
           if (Http.readyState == 4 && Http.status == 200) {
             expect(Http.responseText).to.eql('[]');
-            client.close();
-            if (Http.responseText !== "") {
-              done(null, null);
-            } else {
-              done(err);
-            }
+            done();
           }
         }
-      });
+      }
     })
   });
 });
